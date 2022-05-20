@@ -42,3 +42,8 @@ Control the MIU in isolation by emulating devices connected to the bus for testi
 - Send: Check gearbox
 - Send: Selected gear
 - Send: Selected gear fault
+
+# Useful stuff
+
+- https://docs.rs/nix/0.19.1/nix/ifaddrs/fn.getifaddrs.html
+- https://docs.rs/interfaces/0.0.8/interfaces/struct.Interface.html

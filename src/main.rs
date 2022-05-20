@@ -1,10 +1,11 @@
 // use deku::prelude::*;
 use eframe::egui;
-// use socketcan;
+use std::mem::drop;
+use std::sync::{Arc, Mutex};
 
 mod can;
 
-struct MiuState {
+pub struct MiuState {
     engine_speed: u16,
     engine_speed_fault: bool,
     vehicle_speed: u16,
@@ -58,14 +59,20 @@ enum Mode {
 
 struct MiuComApp {
     mode: Mode,
-    state: MiuState,
+    can_interfaces: can::interfaces::CanInterfaces,
+    selected_can_interface: Option<String>,
+    reader: can::reader::Reader,
+    state: Arc<Mutex<MiuState>>,
 }
 
 impl Default for MiuComApp {
     fn default() -> Self {
         Self {
             mode: Mode::Display,
-            state: MiuState::default(),
+            can_interfaces: can::interfaces::CanInterfaces::new(),
+            selected_can_interface: None,
+            reader: can::reader::Reader::new(),
+            state: Arc::new(Mutex::new(MiuState::default())),
         }
     }
 }
@@ -73,9 +80,11 @@ impl Default for MiuComApp {
 impl eframe::App for MiuComApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("top-bar").show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
+            ui.horizontal(|ui| {
                 egui::widgets::global_dark_light_mode_switch(ui);
+
                 ui.separator();
+
                 ui.label("Mode:");
                 egui::ComboBox::from_id_source("mode-selector")
                     .selected_text(format!("{:?}", self.mode))
@@ -83,6 +92,51 @@ impl eframe::App for MiuComApp {
                         ui.selectable_value(&mut self.mode, Mode::Display, "Display");
                         ui.selectable_value(&mut self.mode, Mode::Control, "Control");
                     });
+
+                ui.separator();
+
+                let interfaces = self.can_interfaces.lock().unwrap();
+                ui.label("Bus:");
+
+                match &*interfaces {
+                    Ok(interfaces) => {
+                        egui::ComboBox::from_id_source("can-interface-selector")
+                            .selected_text(match self.selected_can_interface.clone() {
+                                Some(interface) => interface,
+                                None => String::from("None"),
+                            })
+                            .show_ui(ui, |ui| {
+                                for interface in interfaces {
+                                    ui.selectable_value(
+                                        &mut self.selected_can_interface,
+                                        Some(interface.clone()),
+                                        interface,
+                                    );
+                                }
+                            });
+
+                        let connection_state = self.reader.connection_state.lock().unwrap();
+                        let connection_state_copy = connection_state.clone();
+                        drop(connection_state);
+                        match connection_state_copy {
+                            can::reader::ConnectionState::Connected => {
+                                if ui.button("Disconnect").clicked() {
+                                    self.reader.disconnect();
+                                }
+                            }
+                            can::reader::ConnectionState::Disconnected => {
+                                if let Some(interface) = &self.selected_can_interface {
+                                    if ui.button("Connect").clicked() {
+                                        self.reader.connect(&interface, Arc::clone(&self.state));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        ui.label(format!("Error getting can interfaces: {}", error));
+                    }
+                }
             });
         });
 
@@ -90,48 +144,54 @@ impl eframe::App for MiuComApp {
             Mode::Display => self.display_grid_contents(ui),
             Mode::Control => self.control_grid_contents(ui),
         });
+
+        ctx.request_repaint();
     }
 }
 
 impl MiuComApp {
     fn display_grid_contents(&self, ui: &mut egui::Ui) {
+        let state = self.state.lock().unwrap();
+
         egui::Grid::new("signal_grid")
             .num_columns(3)
             .spacing([40.0, 10.0])
             .striped(true)
             .show(ui, |ui| {
                 ui.heading("Engine speed");
-                ui.heading(format!("{} rpm", self.state.engine_speed));
-                ui.label(format!("Fault: {}", self.state.engine_speed_fault));
+                ui.heading(format!("{} rpm", state.engine_speed));
+                ui.label(format!("Fault: {}", state.engine_speed_fault));
                 ui.end_row();
 
                 ui.heading("Vehicle speed");
-                ui.heading(format!("{} km/h", self.state.vehicle_speed));
-                ui.label(format!("Fault: {}", self.state.vehicle_speed_fault));
+                ui.heading(format!("{} km/h", state.vehicle_speed));
+                ui.label(format!("Fault: {}", state.vehicle_speed_fault));
                 ui.end_row();
 
                 ui.heading("Boost");
-                ui.add(egui::ProgressBar::new(self.state.get_boost_percentage()).show_percentage());
+                ui.add(egui::ProgressBar::new(state.get_boost_percentage()).show_percentage());
                 ui.end_row();
 
                 ui.heading("Coolant temperature 1");
-                ui.heading(format!("{}°C", self.state.coolant_temperature_1));
-                ui.label(format!("Fault: {}", self.state.coolant_temperature_1_fault));
+                ui.heading(format!("{}°C", state.coolant_temperature_1));
+                ui.label(format!("Fault: {}", state.coolant_temperature_1_fault));
                 ui.end_row();
 
                 ui.heading("Coolant temperature 2");
-                ui.heading(format!("{}°C", self.state.coolant_temperature_2));
-                ui.label(format!("Fault: {}", self.state.coolant_temperature_2_fault));
+                ui.heading(format!("{}°C", state.coolant_temperature_2));
+                ui.label(format!("Fault: {}", state.coolant_temperature_2_fault));
                 ui.end_row();
 
                 ui.heading("Fuel level");
-                ui.heading(format!("{}L", self.state.fuel_level));
-                ui.label(format!("Fault: {}", self.state.fuel_level_fault));
+                ui.heading(format!("{} cc", state.fuel_level));
+                ui.label(format!("Fault: {}", state.fuel_level_fault));
                 ui.end_row();
             });
     }
 
     fn control_grid_contents(&mut self, ui: &mut egui::Ui) {
+        let mut state = self.state.lock().unwrap();
+
         egui::Grid::new("control_signal_grid")
             .num_columns(3)
             .spacing([40.0, 10.0])
@@ -139,57 +199,57 @@ impl MiuComApp {
             .show(ui, |ui| {
                 ui.heading("Engine speed");
                 ui.add(
-                    egui::DragValue::new(&mut self.state.engine_speed)
+                    egui::DragValue::new(&mut state.engine_speed)
                         .speed(25)
                         .clamp_range(0_u16..=7000)
                         .suffix(" rpm"),
                 );
 
-                ui.checkbox(&mut self.state.engine_speed_fault, "Fault");
+                ui.checkbox(&mut state.engine_speed_fault, "Fault");
                 ui.end_row();
 
                 ui.heading("Vehicle speed");
                 ui.add(
-                    egui::DragValue::new(&mut self.state.vehicle_speed)
+                    egui::DragValue::new(&mut state.vehicle_speed)
                         .clamp_range(0_u16..=250)
                         .suffix(" km/h"),
                 );
 
-                ui.checkbox(&mut self.state.vehicle_speed_fault, "Fault");
+                ui.checkbox(&mut state.vehicle_speed_fault, "Fault");
                 ui.end_row();
 
                 ui.heading("Boost");
                 ui.horizontal(|ui| {
-                    ui.add(egui::Slider::new(&mut self.state.boost, 0..=255).show_value(false));
-                    ui.label(format!("{:.0}%", self.state.get_boost_percentage() * 100.0));
+                    ui.add(egui::Slider::new(&mut state.boost, 0..=255).show_value(false));
+                    ui.label(format!("{:.0}%", state.get_boost_percentage() * 100.0));
                 });
                 ui.end_row();
 
                 ui.heading("Coolant temperature 1");
                 ui.add(
-                    egui::DragValue::new(&mut self.state.coolant_temperature_1)
+                    egui::DragValue::new(&mut state.coolant_temperature_1)
                         .clamp_range(0_u16..=150)
                         .suffix("°C"),
                 );
-                ui.checkbox(&mut self.state.coolant_temperature_1_fault, "Fault");
+                ui.checkbox(&mut state.coolant_temperature_1_fault, "Fault");
                 ui.end_row();
 
                 ui.heading("Coolant temperature 2");
                 ui.add(
-                    egui::DragValue::new(&mut self.state.coolant_temperature_2)
+                    egui::DragValue::new(&mut state.coolant_temperature_2)
                         .clamp_range(0_u16..=150)
                         .suffix("°C"),
                 );
-                ui.checkbox(&mut self.state.coolant_temperature_2_fault, "Fault");
+                ui.checkbox(&mut state.coolant_temperature_2_fault, "Fault");
                 ui.end_row();
 
                 ui.heading("Fuel level");
                 ui.add(
-                    egui::DragValue::new(&mut self.state.fuel_level)
-                        .clamp_range(0_u16..=70)
-                        .suffix("L"),
+                    egui::DragValue::new(&mut state.fuel_level)
+                        .clamp_range(0_u16..=700)
+                        .suffix("cc"),
                 );
-                ui.checkbox(&mut self.state.fuel_level_fault, "Fault");
+                ui.checkbox(&mut state.fuel_level_fault, "Fault");
                 ui.end_row();
             });
     }
