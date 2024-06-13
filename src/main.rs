@@ -65,12 +65,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+type MiuStateSender = watch::Sender<miu_state::MiuState>;
+type MiuStateReceiver = watch::Receiver<miu_state::MiuState>;
+
 struct App {
     can: can::CanClient,
     interfaces: can::interfaces::InterfacesClient,
     selected_interface: Option<String>,
     miu_state: miu_state::MiuState,
-    miu_state_sender: can::MiuStateSender,
+    miu_state_sender: MiuStateSender,
 }
 
 impl eframe::App for App {

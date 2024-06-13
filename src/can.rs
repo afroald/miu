@@ -12,7 +12,7 @@ mod t7;
 pub mod tcm;
 
 pub enum Command {
-    Connect(String, MiuStateReceiver),
+    Connect(String, super::MiuStateReceiver),
     Disconnect,
 }
 
@@ -33,9 +33,6 @@ impl Default for State {
 
 type StateSender = watch::Sender<State>;
 pub type StateReceiver = watch::Receiver<State>;
-
-pub type MiuStateSender = watch::Sender<MiuState>;
-type MiuStateReceiver = watch::Receiver<MiuState>;
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -212,7 +209,7 @@ impl CanClient {
     pub fn connect(
         &self,
         interface: String,
-        miu_state: MiuStateReceiver,
+        miu_state: super::MiuStateReceiver,
     ) -> Result<(), CanClientError> {
         let command = self.command.clone();
         self.runtime
