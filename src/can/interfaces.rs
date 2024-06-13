@@ -1,49 +1,108 @@
-use interfaces;
-use std::ops::Deref;
-use std::sync::{Arc, Mutex};
-use std::thread;
 use std::time::Duration;
+use tokio::sync::watch;
+use tokio::time;
 
-pub struct CanInterfaces {
-    interfaces: Arc<Mutex<Result<Vec<String>, interfaces::InterfacesError>>>,
+type Sender = watch::Sender<interfaces::Result<Vec<interfaces::Interface>>>;
+type Receiver = watch::Receiver<interfaces::Result<Vec<interfaces::Interface>>>;
+
+#[derive(Debug)]
+pub enum InterfacesError {
+    WorkerStopped,
+    InterfacesError,
 }
 
-impl CanInterfaces {
-    pub fn new() -> Self {
-        let instance = Self {
-            interfaces: Arc::new(Mutex::new(Ok(vec![]))),
-        };
-
-        let available_interfaces = Arc::clone(&instance.interfaces);
-        thread::spawn(move || loop {
-            match interfaces::Interface::get_all() {
-                Ok(detected_interfaces) => {
-                    let mut detected_interface_names: Vec<String> = detected_interfaces
-                        .into_iter()
-                        .map(|interface| interface.name.clone())
-                        .filter(|interface_name| interface_name.contains("can"))
-                        .collect();
-                    detected_interface_names.sort();
-
-                    let mut available_interfaces = available_interfaces.lock().unwrap();
-                    *available_interfaces = Ok(detected_interface_names);
-                }
-                Err(error) => {
-                    let mut available_interfaces = available_interfaces.lock().unwrap();
-                    *available_interfaces = Err(error);
-                }
-            }
-            thread::sleep(Duration::from_secs(1));
-        });
-
-        instance
+impl From<watch::error::RecvError> for InterfacesError {
+    fn from(_: watch::error::RecvError) -> Self {
+        InterfacesError::WorkerStopped
     }
 }
 
-impl Deref for CanInterfaces {
-    type Target = Arc<Mutex<Result<Vec<String>, interfaces::InterfacesError>>>;
+pub struct InterfacesClient {
+    interfaces: Vec<String>,
+    receiver: Receiver,
+}
 
-    fn deref(&self) -> &Self::Target {
-        &self.interfaces
+impl InterfacesClient {
+    pub fn get(&mut self) -> Result<&Vec<String>, InterfacesError> {
+        // This function will be called a lot from the main render loop, so lets try to not copy a
+        // bunch of strings around at 60fps by only updating local state when needed.
+        if self.receiver.has_changed()? {
+            if let Ok(interfaces) = (*self.receiver.borrow_and_update()).as_deref() {
+                self.interfaces = interfaces.iter().map(|i| i.name.to_owned()).collect();
+            } else {
+                return Err(InterfacesError::InterfacesError);
+            }
+        }
+
+        Ok(&self.interfaces)
+    }
+}
+
+/// Runs a backgound task that polls the system for CAN interfaces.
+pub struct InterfacesTask {
+    sender: Sender,
+}
+
+impl InterfacesTask {
+    pub async fn run(&self) {
+        tracing::info!("polling can interfaces");
+        let mut interval = time::interval(Duration::from_secs(1));
+
+        loop {
+            let interfaces = interfaces::Interface::get_all().map(|mut interfaces| {
+                interfaces.sort_by(|a, b| a.name.cmp(&b.name));
+                interfaces
+                    .into_iter()
+                    .filter(|i| i.name.contains("can"))
+                    .collect()
+            });
+
+            tracing::info!("found interfaces: {:?}", interfaces);
+
+            match self.sender.send(interfaces) {
+                Ok(()) => interval.tick().await,
+
+                Err(_) => {
+                    tracing::info!("ending interfaces task because channel closed");
+                    break;
+                }
+            };
+        }
+    }
+}
+
+pub fn task() -> (InterfacesClient, InterfacesTask) {
+    let (sender, receiver) = watch::channel(Ok(vec![]));
+
+    let client = InterfacesClient {
+        interfaces: vec![],
+        receiver,
+    };
+
+    let task = InterfacesTask { sender };
+
+    (client, task)
+}
+
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn client_returns_err_when_task_died() {
+        let (mut client, task) = super::task();
+
+        drop(task);
+
+        assert!(client.get().is_err());
+    }
+
+    #[tokio::test]
+    async fn task_ends_when_client_is_dropped() {
+        let (client, task) = super::task();
+
+        let handle = tokio::spawn(async move { task.run().await });
+
+        drop(client);
+
+        assert!(handle.await.is_ok());
     }
 }

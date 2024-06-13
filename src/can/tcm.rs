@@ -1,4 +1,6 @@
 use deku::prelude::*;
+use socketcan::CanFrame;
+use socketcan::Frame;
 
 #[derive(Debug)]
 pub enum Gear {
@@ -95,4 +97,14 @@ pub struct TransmissionStatus {
 
 impl TransmissionStatus {
     pub const CAN_ID: u32 = 0x3E0;
+}
+
+impl TryInto<CanFrame> for TransmissionStatus {
+    type Error = DekuError;
+
+    fn try_into(self) -> Result<CanFrame, Self::Error> {
+        // Constructing the frame can fail if the id is invalid. In this case the id is
+        // static and known valid, so unwrapping is acceptable.
+        Ok(CanFrame::from_raw_id(Self::CAN_ID, &self.to_bytes()?).unwrap())
+    }
 }

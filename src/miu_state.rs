@@ -1,4 +1,5 @@
-#[derive(Debug, Clone)]
+/// A representation of the Main Instrument Unit state.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct MiuState {
     pub engine_speed: u16,
     pub engine_speed_fault: bool,
@@ -20,38 +21,15 @@ pub struct MiuState {
     pub check_gearbox: bool,
 }
 
-impl Default for MiuState {
-    fn default() -> Self {
-        MiuState {
-            engine_speed: 0,
-            engine_speed_fault: false,
-            vehicle_speed: 0,
-            vehicle_speed_fault: false,
-            boost: 0,
-            coolant_temperature: 0,
-            coolant_temperature_fault: false,
-            fuel_level: 0,
-            fuel_level_fault: false,
-            check_engine: false,
-            cruise: false,
-            gear_lever: 0,
-            gear_lever_fault: false,
-            actual_gear: 0,
-            actual_gear_fault: false,
-            sport: false,
-            winter: false,
-            check_gearbox: false,
-        }
-    }
-}
-
 impl MiuState {
     pub fn get_boost_percentage(&self) -> f32 {
         f32::from(self.boost) / 255.0
     }
 
+    #[allow(dead_code)]
     pub fn set_boost_percentage(&mut self, percentage: f32) {
         if percentage > 100.0 {
+            // This could be handled nicer, but it's good enough for an unused method
             panic!("Received percentage above 100%: {}", percentage);
         }
 
@@ -61,7 +39,7 @@ impl MiuState {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::MiuState;
     use assert_approx_eq::assert_approx_eq;
 
     #[test]

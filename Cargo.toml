@@ -3,11 +3,19 @@ name = "miu-com"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 assert_approx_eq = "1.1.0"
-socketcan = "1.7.0"
-deku = "0.13.0"
-eframe = "0.18.0"
-interfaces = "0.0.8"
+deku = "0.17.0"
+eframe = "0.27.2"
+egui = "0.27.2"
+interfaces = "0.0.9"
+socketcan = { version = "3.3.0", features = ["tokio"] }
+tokio = { version = "1.38.0", features = [
+  'macros',
+  'rt-multi-thread',
+  'time',
+  'signal',
+  'sync',
+] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ['env-filter'] }

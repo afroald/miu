@@ -1,49 +1,35 @@
 # miu-com
 
-https://github.com/crossbeam-rs/crossbeam
+A small utility for controlling the main instrument unit (MIU) from a Saab 9-5.
 
-## Features
-- Start/stop bus connection
-- Mode: display/control
+The reason for making this is that I want to swap a Saab B235 engine into another car, and for that I have to make a new instrument cluster that receives information from the Trionic 7 ECU. Developing this application was very useful for figuring out which CAN messages are important and what they mean. This application will aid in the development of the new instrument cluster because I can use it to simulate parts of the actual car.
 
-## Signals
-- Engine speed (rpm)
-- Vehicle speed (km/h)
-- Boost (0-100%)
-- Coolant temperature (°C)
-- Fuel level (L)
-- Check engine
-- Check gearbox
-- Selected gear
-- Selected gear fault
+This utility is so specific that it's probably not useful for anyone. This readme is mostly a reminder to myself. Note that the error handling is pretty basic because this is not production software and I preferred to spend my time on other things.
 
-## Display mode
-Display data received from all devices on the bus, including the MIU.
+## Requirements
 
-- Receive: Engine speed (rpm)
-- Receive: Vehicle speed (km/h)
-- Receive: Boost (0-100%)
-- Receive: Coolant temperature (°C)
-- Receive: Fuel level (L)
-- Receive: Check engine
-- Receive: Check gearbox
-- Receive: Selected gear
-- Receive: Selected gear fault
+- This application uses [SocketCAN](https://www.kernel.org/doc/html/v4.17/networking/can.html) so only Linux is supported for now.
+- It is possible to test the application using a _virtual_ CAN interface.
 
-## Control mode
-Control the MIU in isolation by emulating devices connected to the bus for testing purposes.
+## Configuring the CAN interface
 
-- Send: Engine speed (rpm)
-- Inactive: Vehicle speed (km/h)
-- Send: Boost (0-100%)
-- Send: Coolant temperature (°C)
-- Inactive: Fuel level (L)
-- Send: Check engine
-- Send: Check gearbox
-- Send: Selected gear
-- Send: Selected gear fault
+Run the following commands to configure and start the interface. I use a [Canable Pro](https://canable.io) personally. YMMV.
 
-# Useful stuff
+```sh
+sudo ip link set can0 type can bitrate 500000 restart-ms 100
+sudo ip link set up can0
+```
 
-- https://docs.rs/nix/0.19.1/nix/ifaddrs/fn.getifaddrs.html
-- https://docs.rs/interfaces/0.0.8/interfaces/struct.Interface.html
+Or configure a virtual interface:
+
+```sh
+sudo modprobe vcan # (if needed)
+sudo ip link add dev vcan0 type vcan
+sudo ip link set up vcan0
+```
+
+## Getting Started
+
+- Configure the CAN interface as described above
+- Start the application: `cargo run`
+- If you use a virtual interface you might want to set the log level to `debug` to get an idea of what message are sent on the bus: `RUST_LOG=debug cargo run`

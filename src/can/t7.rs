@@ -1,4 +1,6 @@
 use deku::prelude::*;
+use socketcan::CanFrame;
+use socketcan::Frame;
 
 #[derive(Debug, PartialEq, DekuRead, DekuWrite)]
 #[deku(endian = "big")]
@@ -36,6 +38,16 @@ pub struct EngineSpeedAndThrottle {
 
 impl EngineSpeedAndThrottle {
     pub const CAN_ID: u32 = 0x1A0;
+}
+
+impl TryInto<CanFrame> for EngineSpeedAndThrottle {
+    type Error = DekuError;
+
+    fn try_into(self) -> Result<CanFrame, Self::Error> {
+        // Constructing the frame can fail if the id is invalid. In this case the id is
+        // static and known valid, so unwrapping is acceptable.
+        Ok(CanFrame::from_raw_id(Self::CAN_ID, &self.to_bytes()?).unwrap())
+    }
 }
 
 #[derive(Debug, PartialEq, DekuRead, DekuWrite)]
@@ -124,6 +136,16 @@ impl EngineStatus {
     pub const CAN_ID: u32 = 0x280;
 }
 
+impl TryInto<CanFrame> for EngineStatus {
+    type Error = DekuError;
+
+    fn try_into(self) -> Result<CanFrame, Self::Error> {
+        // Constructing the frame can fail if the id is invalid. In this case the id is
+        // static and known valid, so unwrapping is acceptable.
+        Ok(CanFrame::from_raw_id(Self::CAN_ID, &self.to_bytes()?).unwrap())
+    }
+}
+
 #[derive(Debug, PartialEq, DekuRead, DekuWrite)]
 #[deku(endian = "big")]
 pub struct AirAndCoolant {
@@ -153,6 +175,16 @@ impl AirAndCoolant {
     pub const CAN_ID: u32 = 0x5C0;
 }
 
+impl TryInto<CanFrame> for AirAndCoolant {
+    type Error = DekuError;
+
+    fn try_into(self) -> Result<CanFrame, Self::Error> {
+        // Constructing the frame can fail if the id is invalid. In this case the id is
+        // static and known valid, so unwrapping is acceptable.
+        Ok(CanFrame::from_raw_id(Self::CAN_ID, &self.to_bytes()?).unwrap())
+    }
+}
+
 #[derive(Debug, PartialEq, DekuRead, DekuWrite)]
 #[deku(endian = "big")]
 pub struct FuelConsumptionAndBoost {
@@ -174,4 +206,14 @@ pub struct FuelConsumptionAndBoost {
 
 impl FuelConsumptionAndBoost {
     pub const CAN_ID: u32 = 0x370;
+}
+
+impl TryInto<CanFrame> for FuelConsumptionAndBoost {
+    type Error = DekuError;
+
+    fn try_into(self) -> Result<CanFrame, Self::Error> {
+        // Constructing the frame can fail if the id is invalid. In this case the id is
+        // static and known valid, so unwrapping is acceptable.
+        Ok(CanFrame::from_raw_id(Self::CAN_ID, &self.to_bytes()?).unwrap())
+    }
 }
