@@ -3,6 +3,7 @@ use socketcan::Frame;
 use std::time::Duration;
 use tokio::sync::{mpsc, watch};
 use tokio::time;
+use thiserror::Error;
 
 use crate::miu_state;
 
@@ -34,12 +35,15 @@ impl Default for State {
 type StateSender = watch::Sender<State>;
 pub type StateReceiver = watch::Receiver<State>;
 
-#[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Error)]
 enum CanError {
+    #[error("can interface error")]
     IO(std::io::Error),
+    #[error("state channel closed")]
     MiuStateChannelClosed,
+    #[error("unable to serialize can frame")]
     Serialization(deku::error::DekuError),
+    #[error("can error")]
     SocketCan(socketcan::Error),
 }
 
