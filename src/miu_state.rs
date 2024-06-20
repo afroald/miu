@@ -1,4 +1,5 @@
 /// A representation of the Main Instrument Unit state.
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct MiuState {
     pub engine_speed: u16,

@@ -4,7 +4,7 @@ use std::time::Duration;
 use tokio::sync::{mpsc, watch};
 use tokio::time;
 
-use crate::miu_state::MiuState;
+use crate::miu_state;
 
 pub mod interfaces;
 mod miu;
@@ -12,7 +12,7 @@ mod t7;
 pub mod tcm;
 
 pub enum Command {
-    Connect(String, super::MiuStateReceiver),
+    Connect(String, watch::Receiver<miu_state::MiuState>),
     Disconnect,
 }
 
@@ -69,7 +69,7 @@ const UPDATE_RATE_HZ: u64 = 20;
 /// when it goes out of scope.
 async fn broadcast_state(
     interface: String,
-    mut miu_state: watch::Receiver<MiuState>,
+    mut miu_state: watch::Receiver<miu_state::MiuState>,
 ) -> Result<(), CanError> {
     tracing::info!("broadcasting miu state on can bus");
 
@@ -209,7 +209,7 @@ impl CanClient {
     pub fn connect(
         &self,
         interface: String,
-        miu_state: super::MiuStateReceiver,
+        miu_state: watch::Receiver<miu_state::MiuState>,
     ) -> Result<(), CanClientError> {
         let command = self.command.clone();
         self.runtime
