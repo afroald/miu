@@ -2,6 +2,8 @@ use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time;
 
+const POLL_INTERVAL_MS: u64 = 1000;
+
 type Sender = watch::Sender<interfaces::Result<Vec<interfaces::Interface>>>;
 type Receiver = watch::Receiver<interfaces::Result<Vec<interfaces::Interface>>>;
 
@@ -40,13 +42,14 @@ impl InterfacesClient {
 
 /// Runs a background task that polls the system for CAN interfaces.
 pub struct InterfacesTask {
+    poll_interval_ms: u64,
     sender: Sender,
 }
 
 impl InterfacesTask {
     pub async fn run(&self) {
         tracing::info!("polling can interfaces");
-        let mut interval = time::interval(Duration::from_secs(1));
+        let mut interval = time::interval(Duration::from_millis(self.poll_interval_ms));
 
         loop {
             let interfaces = interfaces::Interface::get_all().map(|mut interfaces| {
@@ -79,7 +82,7 @@ pub fn task() -> (InterfacesClient, InterfacesTask) {
         receiver,
     };
 
-    let task = InterfacesTask { sender };
+    let task = InterfacesTask { poll_interval_ms: POLL_INTERVAL_MS, sender };
 
     (client, task)
 }
