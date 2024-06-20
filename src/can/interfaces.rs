@@ -38,7 +38,7 @@ impl InterfacesClient {
     }
 }
 
-/// Runs a backgound task that polls the system for CAN interfaces.
+/// Runs a background task that polls the system for CAN interfaces.
 pub struct InterfacesTask {
     sender: Sender,
 }
