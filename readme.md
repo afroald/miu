@@ -6,6 +6,8 @@ The reason for making this is that I want to swap a Saab B235 engine into anothe
 
 This utility is so specific that it's probably not useful for anyone. This readme is mostly a reminder to myself. Note that the error handling is pretty basic because this is not production software and I preferred to spend my time on other things.
 
+https://github.com/afroald/miu/assets/602092/cb0b456d-5024-4f5b-8727-7959b013da18
+
 ## Requirements
 
 - This application uses [SocketCAN](https://www.kernel.org/doc/html/v4.17/networking/can.html) so only Linux is supported for now.
