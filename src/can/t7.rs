@@ -44,9 +44,8 @@ impl TryInto<CanFrame> for EngineSpeedAndThrottle {
     type Error = DekuError;
 
     fn try_into(self) -> Result<CanFrame, Self::Error> {
-        // Constructing the frame can fail if the id is invalid. In this case the id is
-        // static and known valid, so unwrapping is acceptable.
-        Ok(CanFrame::from_raw_id(Self::CAN_ID, &self.to_bytes()?).unwrap())
+        Ok(CanFrame::from_raw_id(Self::CAN_ID, &self.to_bytes()?)
+            .expect("from_raw_id can not fail because the id is static and known valid"))
     }
 }
 
@@ -140,9 +139,8 @@ impl TryInto<CanFrame> for EngineStatus {
     type Error = DekuError;
 
     fn try_into(self) -> Result<CanFrame, Self::Error> {
-        // Constructing the frame can fail if the id is invalid. In this case the id is
-        // static and known valid, so unwrapping is acceptable.
-        Ok(CanFrame::from_raw_id(Self::CAN_ID, &self.to_bytes()?).unwrap())
+        Ok(CanFrame::from_raw_id(Self::CAN_ID, &self.to_bytes()?)
+            .expect("from_raw_id can not fail because the id is static and known valid"))
     }
 }
 
@@ -179,9 +177,8 @@ impl TryInto<CanFrame> for AirAndCoolant {
     type Error = DekuError;
 
     fn try_into(self) -> Result<CanFrame, Self::Error> {
-        // Constructing the frame can fail if the id is invalid. In this case the id is
-        // static and known valid, so unwrapping is acceptable.
-        Ok(CanFrame::from_raw_id(Self::CAN_ID, &self.to_bytes()?).unwrap())
+        Ok(CanFrame::from_raw_id(Self::CAN_ID, &self.to_bytes()?)
+            .expect("from_raw_id can not fail because the id is static and known valid"))
     }
 }
 
@@ -212,8 +209,7 @@ impl TryInto<CanFrame> for FuelConsumptionAndBoost {
     type Error = DekuError;
 
     fn try_into(self) -> Result<CanFrame, Self::Error> {
-        // Constructing the frame can fail if the id is invalid. In this case the id is
-        // static and known valid, so unwrapping is acceptable.
-        Ok(CanFrame::from_raw_id(Self::CAN_ID, &self.to_bytes()?).unwrap())
+        Ok(CanFrame::from_raw_id(Self::CAN_ID, &self.to_bytes()?)
+            .expect("from_raw_id can not fail because the id is static and known valid"))
     }
 }
