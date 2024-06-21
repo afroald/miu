@@ -1,9 +1,9 @@
 use socketcan::tokio::CanSocket;
 use socketcan::Frame;
 use std::time::Duration;
+use thiserror::Error;
 use tokio::sync::{mpsc, watch};
 use tokio::time;
-use thiserror::Error;
 
 use crate::miu_state;
 

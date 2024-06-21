@@ -1,6 +1,6 @@
-use tokio::sync::watch;
 use crate::can;
 use crate::miu_state;
+use tokio::sync::watch;
 
 pub struct Gui {
     pub can: can::CanClient,

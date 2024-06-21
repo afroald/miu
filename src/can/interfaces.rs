@@ -82,7 +82,10 @@ pub fn task() -> (InterfacesClient, InterfacesTask) {
         receiver,
     };
 
-    let task = InterfacesTask { poll_interval_ms: POLL_INTERVAL_MS, sender };
+    let task = InterfacesTask {
+        poll_interval_ms: POLL_INTERVAL_MS,
+        sender,
+    };
 
     (client, task)
 }
